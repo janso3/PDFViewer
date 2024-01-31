@@ -2,6 +2,8 @@
 
 #include <AK/Format.h>
 #include <AK/String.h>
+#include <LibCore/StandardPaths.h>
+#include <LibCore/ResourceImplementationFile.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibMain/Main.h>
 
@@ -17,8 +19,11 @@ static T handle_error(PDF::PDFErrorOr<T> maybe_error)
 
 ErrorOr<int> serenity_main(Main::Arguments args)
 {
-    char const* serenity_resource_root = "../serenity/Base/";
-    Gfx::FontDatabase::set_default_fonts_lookup_path(DeprecatedString::formatted("{}/res/fonts", serenity_resource_root));
+    char const* serenity_resource_root = "../../serenity/Base/";
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::formatted("{}/res", serenity_resource_root))));
+    //Gfx::FontDatabase::set_default_fonts_lookup_path(DeprecatedString::formatted("{}/res/fonts", serenity_resource_root));
+    for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
+        Gfx::FontDatabase::the().load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
         dbgln("SDL_Init failed: {}", SDL_GetError());
@@ -63,11 +68,15 @@ ErrorOr<int> serenity_main(Main::Arguments args)
                         auto* file = popen("zenity --file-selection", "r");
                         fgets(path, sizeof(path), file);
                         auto path_length = strlen(path);
-                        if (path_length <= 1)
+                        if (path_length < 10)
                             break;
                         // HACK: Remove newline.
                         path[path_length - 1] = 0;
-                        handle_error(viewer->load(TRY(String::formatted("{}", path))));
+                        try {
+                            handle_error(viewer->load(TRY(String::formatted("{}", path))));
+                        } catch(...) {
+                            dbgln("--- Exception ---");
+                        }
                         (void)viewer->render();
                     }
                     break;

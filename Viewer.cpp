@@ -43,12 +43,6 @@ PDFErrorOr<void> Viewer::load(String const& path)
 
     m_document = TRY(Document::create(m_buffer));
 
-    if (auto sh = m_document->security_handler(); sh && !sh->has_user_password()) {
-        StringBuilder password;
-        TODO();
-        m_document->security_handler()->try_provide_user_password(password.to_deprecated_string());
-    }
-
     TRY(m_document->initialize());
     TRY(handle_resize(m_width, m_height));
 
@@ -139,7 +133,7 @@ PDFErrorOr<RefPtr<Gfx::Bitmap>> Viewer::rasterize_page(u32 index)
     preferences.show_clipping_paths = false;
     preferences.show_images = true;
 
-    auto errors = Renderer::render(*m_document, page, bitmap, preferences);
+    auto errors = Renderer::render(*m_document, page, bitmap, Gfx::Color::White, preferences);
     if (errors.is_error()) {
         for (auto error : errors.error().errors())
             dbgln("{}", error.message());
